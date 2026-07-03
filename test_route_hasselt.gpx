@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<gpx version="1.1" creator="clearway-test" xmlns="http://www.topografix.com/GPX/1/1">
+<trk><name>Hasselt test route (crosses a live roadwork)</name><trkseg>
+<trkpt lat="50.930700" lon="5.337800"></trkpt>
+<trkpt lat="50.931149" lon="5.339233"></trkpt>
+<trkpt lat="50.931598" lon="5.340665"></trkpt>
+<trkpt lat="50.932047" lon="5.342098"></trkpt>
+<trkpt lat="50.932496" lon="5.343531"></trkpt>
+<trkpt lat="50.932945" lon="5.344963"></trkpt>
+<trkpt lat="50.933394" lon="5.346396"></trkpt>
+<trkpt lat="50.933843" lon="5.347829"></trkpt>
+<trkpt lat="50.934527" lon="5.349846"></trkpt>
+<trkpt lat="50.935270" lon="5.352010"></trkpt>
+<trkpt lat="50.936014" lon="5.354173"></trkpt>
+<trkpt lat="50.936757" lon="5.356337"></trkpt>
+<trkpt lat="50.937500" lon="5.358500"></trkpt>
+</trkseg></trk></gpx>

@@ -1,0 +1,1103 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Clearway — Community Closure Map</title>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css" />
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Oswald:wght@400;500;600;700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --asphalt: #3d4447;
+    --asphalt-2: #dfe3e2;
+    --paper: #f4f1ea;
+    --amber: #e8a324;
+    --amber-dark: #b87f18;
+    --hazard-red: #d1483a;
+    --route-green: #5f8f5b;
+    --official-blue: #3f7cac;
+    --conflict-purple: #8e44ad;
+    --ink: #232323;
+    --line: rgba(244,241,234,0.14);
+  }
+
+  * { box-sizing: border-box; }
+
+  html, body {
+    margin: 0;
+    padding: 0;
+    height: 100%;
+    width: 100%;
+    font-family: 'Inter', -apple-system, sans-serif;
+    background: var(--asphalt);
+    color: var(--paper);
+    overflow: hidden;
+  }
+
+  #app {
+    position: relative;
+    width: 100%;
+    height: 100vh;
+  }
+
+  /* ---------- Header ---------- */
+  header {
+    position: absolute;
+    top: 0; left: 0; right: 0;
+    z-index: 1000;
+    background: linear-gradient(180deg, rgba(61,68,71,0.97) 0%, rgba(61,68,71,0.88) 70%, rgba(61,68,71,0) 100%);
+    padding: 16px 20px 30px 20px;
+    pointer-events: none;
+  }
+
+  .header-inner {
+    pointer-events: auto;
+    max-width: 480px;
+  }
+
+  .brand-row {
+    display: flex;
+    align-items: baseline;
+    gap: 10px;
+  }
+
+  h1 {
+    font-family: 'Oswald', sans-serif;
+    font-weight: 700;
+    font-size: 26px;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    margin: 0;
+    color: var(--paper);
+  }
+
+  .hazard-tick {
+    display: inline-block;
+    width: 22px;
+    height: 14px;
+    background: repeating-linear-gradient(
+      -45deg,
+      var(--amber),
+      var(--amber) 4px,
+      var(--ink) 4px,
+      var(--ink) 8px
+    );
+    border-radius: 2px;
+    flex-shrink: 0;
+  }
+
+  .tagline {
+    font-size: 12.5px;
+    color: rgba(244,241,234,0.62);
+    margin-top: 4px;
+    letter-spacing: 0.01em;
+  }
+
+  .stat-row {
+    display: flex;
+    gap: 14px;
+    margin-top: 10px;
+    font-family: 'Oswald', sans-serif;
+    font-size: 11.5px;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+  }
+
+  .stat {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    color: rgba(244,241,234,0.75);
+  }
+
+  .stat-dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+  }
+
+  .route-row {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 10px;
+    margin-top: 12px;
+  }
+
+  .route-btn {
+    font-family: 'Oswald', sans-serif;
+    font-size: 11.5px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    background: var(--official-blue);
+    color: #fff;
+    padding: 7px 14px;
+    border-radius: 999px;
+    cursor: pointer;
+    white-space: nowrap;
+  }
+  .route-btn:hover { background: #356a92; }
+
+  .route-status {
+    font-size: 12px;
+    color: rgba(244,241,234,0.85);
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  .route-status .route-warn { color: var(--amber); font-weight: 600; }
+  .route-status .route-ok { color: var(--route-green); font-weight: 600; }
+  .route-status button {
+    background: none;
+    border: 1px solid rgba(244,241,234,0.4);
+    color: inherit;
+    border-radius: 999px;
+    padding: 3px 10px;
+    font-size: 11px;
+    cursor: pointer;
+    font-family: 'Inter', sans-serif;
+  }
+
+  /* ---------- Map ---------- */
+  #map {
+    width: 100%;
+    height: 100%;
+    background: var(--asphalt-2);
+  }
+
+  .leaflet-container {
+    font-family: 'Inter', sans-serif;
+  }
+
+  /* ---------- Markers ---------- */
+  .closure-marker {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  .closure-marker svg { display: block; filter: drop-shadow(0 2px 3px rgba(0,0,0,0.45)); }
+
+  .roadwork-marker { display: flex; align-items: center; justify-content: center; }
+  .roadwork-marker svg { display: block; filter: drop-shadow(0 2px 3px rgba(0,0,0,0.4)); }
+
+  .conflict-marker { display: flex; align-items: center; justify-content: center; }
+  .conflict-marker svg { display: block; filter: drop-shadow(0 2px 3px rgba(0,0,0,0.45)); }
+
+  .popup-inner .ptype.official { color: var(--official-blue); }
+  .popup-inner .ptype.conflict { color: var(--conflict-purple); }
+
+  /* ---------- Report hint / FAB ---------- */
+  .report-hint {
+    position: absolute;
+    bottom: 22px;
+    left: 50%;
+    transform: translateX(-50%);
+    z-index: 1000;
+    background: var(--amber);
+    color: var(--ink);
+    font-family: 'Oswald', sans-serif;
+    font-weight: 600;
+    font-size: 13px;
+    letter-spacing: 0.03em;
+    text-transform: uppercase;
+    padding: 11px 20px;
+    border-radius: 999px;
+    box-shadow: 0 6px 20px rgba(0,0,0,0.35);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    text-align: center;
+    gap: 8px;
+    max-width: min(90vw, 380px);
+    white-space: normal;
+    cursor: default;
+    user-select: none;
+    transition: opacity 0.2s ease, background 0.15s ease, color 0.15s ease;
+  }
+
+  .report-hint.dimmed { opacity: 0.55; }
+
+  .report-hint.picking {
+    background: var(--paper);
+    color: var(--ink);
+    border: 1.5px dashed var(--ink);
+    cursor: pointer;
+  }
+
+  /* ---------- Slide-up panel ---------- */
+  .panel-backdrop {
+    position: absolute;
+    inset: 0;
+    background: rgba(0,0,0,0.45);
+    z-index: 1500;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.2s ease;
+  }
+  .panel-backdrop.open { opacity: 1; pointer-events: auto; }
+
+  .panel {
+    position: absolute;
+    left: 0; right: 0; bottom: 0;
+    z-index: 1600;
+    background: var(--paper);
+    color: var(--ink);
+    border-radius: 18px 18px 0 0;
+    padding: 20px 20px 24px 20px;
+    transform: translateY(105%);
+    transition: transform 0.25s cubic-bezier(.32,.72,0,1);
+    max-height: 82vh;
+    overflow-y: auto;
+    box-shadow: 0 -8px 30px rgba(0,0,0,0.4);
+  }
+  .panel.open { transform: translateY(0); }
+
+  .panel-handle {
+    width: 36px;
+    height: 4px;
+    background: rgba(35,35,35,0.2);
+    border-radius: 3px;
+    margin: 0 auto 16px auto;
+  }
+
+  .panel h2 {
+    font-family: 'Oswald', sans-serif;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    font-size: 18px;
+    margin: 0 0 4px 0;
+  }
+
+  .panel .coords {
+    font-size: 12px;
+    color: #767066;
+    margin-bottom: 16px;
+    font-variant-numeric: tabular-nums;
+  }
+
+  .field { margin-bottom: 14px; }
+
+  .field label {
+    display: block;
+    font-size: 11.5px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    color: #5b5548;
+    margin-bottom: 6px;
+  }
+
+  .field textarea, .field input[type="date"] {
+    width: 100%;
+    border: 1.5px solid rgba(35,35,35,0.15);
+    border-radius: 10px;
+    padding: 10px 12px;
+    font-family: 'Inter', sans-serif;
+    font-size: 14px;
+    background: #fff;
+    color: var(--ink);
+    resize: none;
+  }
+
+  .field textarea:focus, .field input:focus {
+    outline: none;
+    border-color: var(--amber-dark);
+  }
+
+  .panel-actions {
+    display: flex;
+    gap: 10px;
+    margin-top: 18px;
+  }
+
+  .btn {
+    flex: 1;
+    padding: 13px;
+    border-radius: 10px;
+    border: none;
+    font-family: 'Oswald', sans-serif;
+    font-weight: 600;
+    font-size: 13.5px;
+    text-transform: uppercase;
+    letter-spacing: 0.03em;
+    cursor: pointer;
+  }
+
+  .btn-primary { background: var(--hazard-red); color: #fff; }
+  .btn-primary:hover { background: #b83a2e; }
+  .btn-secondary { background: transparent; color: #6b6559; border: 1.5px solid rgba(35,35,35,0.15); }
+
+  /* ---------- Popup styling ---------- */
+  .leaflet-popup-content-wrapper {
+    background: var(--paper);
+    color: var(--ink);
+    border-radius: 12px;
+  }
+  .leaflet-popup-tip { background: var(--paper); }
+
+  .popup-inner { min-width: 200px; font-family: 'Inter', sans-serif; }
+  .popup-inner .ptype {
+    font-family: 'Oswald', sans-serif;
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: var(--hazard-red);
+    font-weight: 600;
+    margin-bottom: 4px;
+  }
+  .popup-inner .pnote { font-size: 13.5px; line-height: 1.4; margin-bottom: 8px; }
+  .popup-inner .pmeta { font-size: 11px; color: #857f72; margin-bottom: 10px; }
+  .popup-actions { display: flex; gap: 6px; }
+  .popup-actions button {
+    flex: 1;
+    font-size: 11.5px;
+    font-weight: 600;
+    padding: 7px 6px;
+    border-radius: 7px;
+    border: 1.5px solid rgba(35,35,35,0.15);
+    background: #fff;
+    cursor: pointer;
+    font-family: 'Inter', sans-serif;
+  }
+  .popup-actions button.confirm { color: var(--amber-dark); border-color: var(--amber-dark); }
+  .popup-actions button.clear { color: var(--route-green); border-color: var(--route-green); }
+
+  /* ---------- Loading toast ---------- */
+  .toast {
+    position: absolute;
+    top: 16px;
+    right: 16px;
+    z-index: 2000;
+    background: var(--ink);
+    color: var(--paper);
+    padding: 10px 16px;
+    border-radius: 10px;
+    font-size: 12.5px;
+    box-shadow: 0 6px 20px rgba(0,0,0,0.3);
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    transition: opacity 0.3s ease;
+  }
+  .toast.hidden { opacity: 0; pointer-events: none; }
+
+  .spinner {
+    width: 12px; height: 12px;
+    border-radius: 50%;
+    border: 2px solid rgba(244,241,234,0.25);
+    border-top-color: var(--amber);
+    animation: spin 0.7s linear infinite;
+  }
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  @media (prefers-reduced-motion: reduce) {
+    .panel, .report-hint, .toast, .spinner { transition: none; animation: none; }
+  }
+</style>
+</head>
+<body>
+
+<div id="app">
+  <header>
+    <div class="header-inner">
+      <div class="brand-row">
+        <span class="hazard-tick"></span>
+        <h1>Clearway</h1>
+      </div>
+      <div class="tagline">Community-reported closures for cyclists. Tap the map to add one.</div>
+      <div class="stat-row">
+        <div class="stat"><span class="stat-dot" style="background:var(--amber)"></span><span id="activeCount">0</span> active</div>
+        <div class="stat"><span class="stat-dot" style="background:var(--route-green)"></span><span id="clearedCount">0</span> cleared</div>
+        <div class="stat"><span class="stat-dot" style="background:var(--official-blue)"></span><span id="officialCount">0</span> official</div>
+      </div>
+      <div class="route-row">
+        <label class="route-btn" for="gpxInput">Check a route (GPX)</label>
+        <input type="file" id="gpxInput" accept=".gpx,application/gpx+xml" hidden />
+        <span class="route-status" id="routeStatus"></span>
+      </div>
+    </div>
+  </header>
+
+  <div id="map"></div>
+
+  <div class="report-hint" id="reportHint">Tap anywhere on the map to report a closure</div>
+
+  <div class="panel-backdrop" id="backdrop"></div>
+  <div class="panel" id="panel">
+    <div class="panel-handle"></div>
+    <h2>Report a closure</h2>
+    <div class="coords" id="coordsLabel">—</div>
+
+    <div class="field">
+      <label>What's going on?</label>
+      <textarea id="noteInput" rows="3" placeholder="e.g. Road fully closed for resurfacing, no way through by bike"></textarea>
+    </div>
+
+    <div class="field">
+      <label>Expected clear by (optional)</label>
+      <input type="date" id="dateInput" />
+    </div>
+
+    <div class="panel-actions">
+      <button class="btn btn-secondary" id="cancelBtn">Cancel</button>
+      <button class="btn btn-primary" id="submitBtn">Mark closure</button>
+    </div>
+  </div>
+
+  <div class="toast" id="toast"><div class="spinner"></div><span id="toastText">Loading reports…</span></div>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/proj4js/2.9.2/proj4.js"></script>
+<script type="module">
+import { initializeApp } from "https://www.gstatic.com/firebasejs/12.15.0/firebase-app.js";
+import {
+  getFirestore, collection, doc, addDoc, updateDoc, onSnapshot
+} from "https://www.gstatic.com/firebasejs/12.15.0/firebase-firestore.js";
+
+// Paste your Firebase project's web config here (Firebase console → Project settings → Your apps).
+// This config is not a secret — access is controlled by Firestore security rules, not by hiding this.
+const firebaseConfig = {
+  apiKey: "YOUR_API_KEY",
+  authDomain: "YOUR_PROJECT.firebaseapp.com",
+  projectId: "YOUR_PROJECT",
+  storageBucket: "YOUR_PROJECT.appspot.com",
+  messagingSenderId: "YOUR_SENDER_ID",
+  appId: "YOUR_APP_ID"
+};
+
+const firebaseApp = initializeApp(firebaseConfig);
+const db = getFirestore(firebaseApp);
+const closuresCol = collection(db, 'closures');
+
+(function() {
+  let closures = [];
+  let pendingPoints = [];
+  let picking = false;
+  let pickStartMarker = null;
+  let pickRubberBand = null;
+  const markerLayer = {};
+
+  const map = L.map('map', { zoomControl: false, attributionControl: false }).setView([50.9307, 5.3378], 13); // Hasselt
+  L.control.zoom({ position: 'bottomright' }).addTo(map);
+  L.control.attribution({ prefix: false }).addTo(map);
+
+  L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png', {
+    subdomains: 'abcd',
+    maxZoom: 19
+  }).addTo(map);
+
+  // ---------- Official roadworks (Vlaams Verkeerscentrum, DATEX2 v3 feed) ----------
+  proj4.defs('EPSG:31370', '+proj=lcc +lat_1=51.16666723333333 +lat_2=49.8333339 +lat_0=90 ' +
+    '+lon_0=4.367486666666666 +x_0=150000.013 +y_0=5400088.438 +ellps=intl ' +
+    '+towgs84=-106.8686,52.2978,-103.7239,0.3366,-0.457,1.8422,-1.2747 +units=m +no_defs');
+
+  const ROADWORKS_FEED_URL = 'https://www.verkeerscentrum.be/uitwisseling/datex2v3full';
+  const ROADWORKS_REFRESH_MS = 10 * 60 * 1000;
+  const LIMBURG_BOUNDS = L.latLngBounds([50.60, 4.85], [51.25, 6.05]);
+  const DX_NS = {
+    sit: 'http://datex2.eu/schema/3/situation',
+    loc: 'http://datex2.eu/schema/3/locationReferencing',
+    xsi: 'http://www.w3.org/2001/XMLSchema-instance'
+  };
+  const ROADWORK_TYPE_LABELS = {
+    roadClosed: 'Road closed',
+    narrowLanes: 'Narrowed lanes',
+    contraflow: 'Contraflow lane',
+    singleAlternateLineTraffic: 'Single alternating lane',
+    newRoadworksLayout: 'New road layout',
+    roadworks: 'Roadworks',
+    roadsideWork: 'Roadside work'
+  };
+
+  const roadworksLayer = L.layerGroup().addTo(map);
+  let roadworks = [];
+  const OFFICIAL_BLUE = getComputedStyle(document.documentElement).getPropertyValue('--official-blue').trim();
+  const CONFLICT_PURPLE = getComputedStyle(document.documentElement).getPropertyValue('--conflict-purple').trim();
+  const routeLayer = L.layerGroup().addTo(map);
+
+  function toWgs84(x, y) {
+    const [lng, lat] = proj4('EPSG:31370', 'WGS84', [x, y]);
+    return { lat, lng };
+  }
+
+  function xsiType(el) {
+    return el.getAttributeNS(DX_NS.xsi, 'type') || '';
+  }
+
+  function firstChildNS(parent, ns, localName) {
+    const found = parent.getElementsByTagNameNS(ns, localName);
+    return found.length ? found[0] : null;
+  }
+
+  function textOf(parent, ns, localName) {
+    const el = firstChildNS(parent, ns, localName);
+    return el ? el.textContent : null;
+  }
+
+  function parseLocation(situationRecord) {
+    const locRef = firstChildNS(situationRecord, DX_NS.sit, 'locationReference');
+    if (!locRef) return [];
+    const locType = xsiType(locRef);
+    const points = [];
+
+    if (locType.endsWith('SingleRoadLinearLocation')) {
+      const posList = firstChildNS(locRef, DX_NS.loc, 'posList');
+      if (posList) {
+        const nums = posList.textContent.trim().split(/\s+/).map(Number);
+        for (let i = 0; i + 1 < nums.length; i += 2) {
+          points.push(toWgs84(nums[i], nums[i + 1]));
+        }
+      }
+    } else if (locType.endsWith('PointLocation')) {
+      const latText = textOf(locRef, DX_NS.loc, 'latitude');
+      const lngText = textOf(locRef, DX_NS.loc, 'longitude');
+      if (latText !== null && lngText !== null) {
+        points.push(toWgs84(Number(lngText), Number(latText)));
+      }
+    }
+    return points;
+  }
+
+  function parseDatex2(xmlText) {
+    const doc = new DOMParser().parseFromString(xmlText, 'application/xml');
+    const records = doc.getElementsByTagNameNS(DX_NS.sit, 'situationRecord');
+    const results = [];
+
+    for (const rec of records) {
+      const type = xsiType(rec);
+      if (!(type.endsWith('RoadOrCarriagewayOrLaneManagement') || type.endsWith('MaintenanceWorks'))) continue;
+
+      const points = parseLocation(rec);
+      if (!points.length) continue;
+      const inLimburg = points.some(p => LIMBURG_BOUNDS.contains([p.lat, p.lng]));
+      if (!inLimburg) continue;
+
+      const code = textOf(rec, DX_NS.sit, 'roadOrCarriagewayOrLaneManagementType') ||
+                   textOf(rec, DX_NS.sit, 'roadMaintenanceType');
+      const label = ROADWORK_TYPE_LABELS[code] || 'Roadworks';
+      const start = textOf(rec, DX_NS.sit, 'overallStartTime');
+      const end = textOf(rec, DX_NS.sit, 'overallEndTime');
+
+      results.push({
+        id: rec.getAttribute('id'),
+        points,
+        label,
+        start,
+        end
+      });
+    }
+    return results;
+  }
+
+  function formatDateRange(start, end) {
+    const opts = { day: 'numeric', month: 'short' };
+    const s = start ? new Date(start).toLocaleDateString('en-GB', opts) : null;
+    const e = end ? new Date(end).toLocaleDateString('en-GB', opts) : null;
+    if (s && e) return s + ' – ' + e;
+    if (s) return 'from ' + s;
+    if (e) return 'until ' + e;
+    return 'dates unknown';
+  }
+
+  function roadworkIcon() {
+    return L.divIcon({
+      className: 'roadwork-marker',
+      html: `<svg width="24" height="24" viewBox="0 0 24 24">
+               <rect x="2" y="2" width="20" height="20" rx="5" fill="${OFFICIAL_BLUE}" stroke="#1f2223" stroke-width="1.5"/>
+               <text x="12" y="17" font-family="Oswald, sans-serif" font-size="12" font-weight="700" fill="#fff" text-anchor="middle">W</text>
+             </svg>`,
+      iconSize: [24, 24],
+      iconAnchor: [12, 20],
+      popupAnchor: [0, -18]
+    });
+  }
+
+  function roadworkPopupHtml(rw) {
+    return `
+      <div class="popup-inner">
+        <div class="ptype official">Official roadworks</div>
+        <div class="pnote">${escapeHtml(rw.label)}</div>
+        <div class="pmeta">${escapeHtml(formatDateRange(rw.start, rw.end))} · Vlaams Verkeerscentrum</div>
+      </div>`;
+  }
+
+  function renderRoadworks() {
+    roadworksLayer.clearLayers();
+    roadworks.forEach(rw => {
+      if (rw.points.length > 1) {
+        const line = L.polyline(rw.points.map(p => [p.lat, p.lng]), {
+          color: OFFICIAL_BLUE,
+          weight: 5,
+          opacity: 0.85,
+          dashArray: '1, 8',
+          lineCap: 'round'
+        }).addTo(roadworksLayer);
+        line.bindPopup(roadworkPopupHtml(rw));
+      } else {
+        const p = rw.points[0];
+        L.marker([p.lat, p.lng], { icon: roadworkIcon() }).addTo(roadworksLayer).bindPopup(roadworkPopupHtml(rw));
+      }
+    });
+    document.getElementById('officialCount').textContent = roadworks.length;
+  }
+
+  async function loadRoadworks() {
+    try {
+      const res = await fetch(ROADWORKS_FEED_URL);
+      if (!res.ok) throw new Error('HTTP ' + res.status);
+      const xmlText = await res.text();
+      roadworks = parseDatex2(xmlText);
+      renderRoadworks();
+    } catch (err) {
+      console.warn('Could not load official roadworks feed:', err);
+    }
+  }
+
+  const backdrop = document.getElementById('backdrop');
+  const panel = document.getElementById('panel');
+  const reportHint = document.getElementById('reportHint');
+  const toast = document.getElementById('toast');
+  const toastText = document.getElementById('toastText');
+
+  function showToast(text, autoHide) {
+    toastText.textContent = text;
+    toast.classList.remove('hidden');
+    if (autoHide) setTimeout(() => toast.classList.add('hidden'), 1600);
+  }
+
+  function hazardIcon(color) {
+    return L.divIcon({
+      className: 'closure-marker',
+      html: `<svg width="30" height="30" viewBox="0 0 30 30">
+               <polygon points="15,3 27,25 3,25" fill="${color}" stroke="#1f2223" stroke-width="1.5"/>
+               <text x="15" y="22" font-family="Oswald, sans-serif" font-size="14" font-weight="700" fill="#1f2223" text-anchor="middle">!</text>
+             </svg>`,
+      iconSize: [30, 30],
+      iconAnchor: [15, 25],
+      popupAnchor: [0, -22]
+    });
+  }
+
+  function daysAgo(iso) {
+    const diff = Math.floor((Date.now() - new Date(iso).getTime()) / 86400000);
+    if (diff <= 0) return 'today';
+    if (diff === 1) return '1 day ago';
+    return diff + ' days ago';
+  }
+
+  function formatDistance(meters) {
+    if (meters < 1000) return Math.round(meters) + ' m';
+    return (meters / 1000).toFixed(1) + ' km';
+  }
+
+  function pathLength(points) {
+    let total = 0;
+    for (let i = 1; i < points.length; i++) {
+      total += L.latLng(points[i - 1]).distanceTo(points[i]);
+    }
+    return total;
+  }
+
+  // ---------- GPX route checking ----------
+  const ROUTE_CONFLICT_THRESHOLD_M = 30;
+  const ROUTE_CHECK_MAX_POINTS = 1500;
+  const EARTH_R = 6371000;
+
+  function projectLocal(lat, lng, lat0) {
+    return {
+      x: (lng * Math.PI / 180) * EARTH_R * Math.cos(lat0 * Math.PI / 180),
+      y: (lat * Math.PI / 180) * EARTH_R
+    };
+  }
+
+  function closestOnSegment(p, a, b) {
+    const abx = b.x - a.x, aby = b.y - a.y;
+    const len2 = abx * abx + aby * aby;
+    let t = len2 === 0 ? 0 : ((p.x - a.x) * abx + (p.y - a.y) * aby) / len2;
+    t = Math.max(0, Math.min(1, t));
+    return { x: a.x + t * abx, y: a.y + t * aby, t };
+  }
+
+  function localDist(p1, p2) {
+    return Math.hypot(p1.x - p2.x, p1.y - p2.y);
+  }
+
+  // Approximates route-vs-obstacle proximity via segment-endpoint checks (not exact
+  // segment/segment intersection) — good enough at road scale for a "is this near my route" check.
+  function nearestApproach(routePoints, obstaclePoints, lat0) {
+    const route = routePoints.map(p => projectLocal(p.lat, p.lng, lat0));
+    const obstacle = obstaclePoints.map(p => projectLocal(p.lat, p.lng, lat0));
+    let best = { dist: Infinity, idx: 0, t: 0 };
+
+    for (let i = 0; i < route.length - 1; i++) {
+      const a = route[i], b = route[i + 1];
+      if (obstacle.length === 1) {
+        const cp = closestOnSegment(obstacle[0], a, b);
+        const d = localDist(cp, obstacle[0]);
+        if (d < best.dist) best = { dist: d, idx: i, t: cp.t };
+      } else {
+        for (let j = 0; j < obstacle.length - 1; j++) {
+          const c = obstacle[j], d2 = obstacle[j + 1];
+          [[a, 0], [b, 1]].forEach(([routePt, t]) => {
+            const cp = closestOnSegment(routePt, c, d2);
+            const d = localDist(cp, routePt);
+            if (d < best.dist) best = { dist: d, idx: i, t };
+          });
+          [c, d2].forEach(obsPt => {
+            const cp = closestOnSegment(obsPt, a, b);
+            const d = localDist(cp, obsPt);
+            if (d < best.dist) best = { dist: d, idx: i, t: cp.t };
+          });
+        }
+      }
+    }
+
+    const a = routePoints[best.idx], b = routePoints[Math.min(best.idx + 1, routePoints.length - 1)];
+    return {
+      distance: best.dist,
+      point: { lat: a.lat + (b.lat - a.lat) * best.t, lng: a.lng + (b.lng - a.lng) * best.t }
+    };
+  }
+
+  function decimate(points, maxPoints) {
+    if (points.length <= maxPoints) return points;
+    const stride = Math.ceil(points.length / maxPoints);
+    const out = [];
+    for (let i = 0; i < points.length; i += stride) out.push(points[i]);
+    if (out[out.length - 1] !== points[points.length - 1]) out.push(points[points.length - 1]);
+    return out;
+  }
+
+  function parseGpx(xmlText) {
+    const doc = new DOMParser().parseFromString(xmlText, 'application/xml');
+    if (doc.getElementsByTagName('parsererror').length) throw new Error('Could not parse GPX file');
+    let nodes = doc.getElementsByTagName('trkpt');
+    if (!nodes.length) nodes = doc.getElementsByTagName('rtept');
+    if (!nodes.length) nodes = doc.getElementsByTagName('wpt');
+    const pts = [];
+    for (const pt of nodes) {
+      const lat = parseFloat(pt.getAttribute('lat'));
+      const lng = parseFloat(pt.getAttribute('lon'));
+      if (!Number.isNaN(lat) && !Number.isNaN(lng)) pts.push({ lat, lng });
+    }
+    if (pts.length < 2) throw new Error('GPX file has no usable track points');
+    return pts;
+  }
+
+  function conflictIcon() {
+    return L.divIcon({
+      className: 'conflict-marker',
+      html: `<svg width="26" height="26" viewBox="0 0 26 26">
+               <circle cx="13" cy="13" r="10" fill="${CONFLICT_PURPLE}" stroke="#1f2223" stroke-width="1.5"/>
+               <text x="13" y="18" font-family="Oswald, sans-serif" font-size="13" font-weight="700" fill="#fff" text-anchor="middle">!</text>
+             </svg>`,
+      iconSize: [26, 26],
+      iconAnchor: [13, 13],
+      popupAnchor: [0, -12]
+    });
+  }
+
+  function checkRouteAgainstObstacles(routePoints) {
+    const lat0 = routePoints[Math.floor(routePoints.length / 2)].lat;
+    const checkPoints = decimate(routePoints, ROUTE_CHECK_MAX_POINTS);
+    const conflicts = [];
+
+    closures.filter(c => !c.cleared).forEach(c => {
+      const approach = nearestApproach(checkPoints, c.points, lat0);
+      if (approach.distance <= ROUTE_CONFLICT_THRESHOLD_M) {
+        conflicts.push({
+          point: approach.point,
+          distance: approach.distance,
+          label: 'Community-reported: ' + (c.note || 'closure')
+        });
+      }
+    });
+
+    roadworks.forEach(rw => {
+      const approach = nearestApproach(checkPoints, rw.points, lat0);
+      if (approach.distance <= ROUTE_CONFLICT_THRESHOLD_M) {
+        conflicts.push({
+          point: approach.point,
+          distance: approach.distance,
+          label: 'Official: ' + rw.label + ' (' + formatDateRange(rw.start, rw.end) + ')'
+        });
+      }
+    });
+
+    return conflicts;
+  }
+
+  function clearRoute() {
+    routeLayer.clearLayers();
+    document.getElementById('routeStatus').innerHTML = '';
+    document.getElementById('gpxInput').value = '';
+  }
+
+  document.getElementById('gpxInput').addEventListener('change', async (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+
+    routeLayer.clearLayers();
+    document.getElementById('routeStatus').innerHTML = '';
+    showToast('Reading route…', false);
+
+    try {
+      const text = await file.text();
+      const points = parseGpx(text);
+
+      const routeLine = L.polyline(points.map(p => [p.lat, p.lng]), {
+        color: '#2e86ab', weight: 4, opacity: 0.9
+      }).addTo(routeLayer);
+      map.fitBounds(routeLine.getBounds(), { padding: [40, 40] });
+
+      showToast('Checking route against roadworks…', false);
+      const conflicts = checkRouteAgainstObstacles(points);
+
+      conflicts.forEach(c => {
+        L.marker([c.point.lat, c.point.lng], { icon: conflictIcon() })
+          .addTo(routeLayer)
+          .bindPopup(`
+            <div class="popup-inner">
+              <div class="ptype conflict">Route conflict</div>
+              <div class="pnote">${escapeHtml(c.label)}</div>
+              <div class="pmeta">~${Math.round(c.distance)} m from your route</div>
+            </div>`);
+      });
+
+      toast.classList.add('hidden');
+      const statusEl = document.getElementById('routeStatus');
+      const summary = conflicts.length
+        ? `<span class="route-warn">${conflicts.length} issue${conflicts.length === 1 ? '' : 's'} found on "${escapeHtml(file.name)}"</span>`
+        : `<span class="route-ok">No known roadworks on "${escapeHtml(file.name)}"</span>`;
+      statusEl.innerHTML = summary + ' <button type="button" id="clearRouteBtn">Clear</button>';
+      document.getElementById('clearRouteBtn').addEventListener('click', clearRoute);
+    } catch (err) {
+      console.warn('Could not read GPX file:', err);
+      toast.classList.add('hidden');
+      showToast('Could not read that GPX file', true);
+    }
+  });
+
+  const OSRM_ROUTE_URL = 'https://router.project-osrm.org/route/v1/driving/';
+
+  async function snapToRoad(a, b) {
+    try {
+      const coords = a.lng + ',' + a.lat + ';' + b.lng + ',' + b.lat;
+      const res = await fetch(OSRM_ROUTE_URL + coords + '?overview=full&geometries=geojson');
+      if (!res.ok) throw new Error('HTTP ' + res.status);
+      const data = await res.json();
+      if (data.code !== 'Ok' || !data.routes || !data.routes.length) throw new Error('no route found');
+      return data.routes[0].geometry.coordinates.map(([lng, lat]) => L.latLng(lat, lng));
+    } catch (err) {
+      console.warn('Road snapping failed, using straight line:', err);
+      return [a, b];
+    }
+  }
+
+  function renderMarkers() {
+    Object.values(markerLayer).forEach(m => map.removeLayer(m));
+    Object.keys(markerLayer).forEach(k => delete markerLayer[k]);
+
+    let active = 0, cleared = 0;
+
+    closures.forEach(c => {
+      if (c.cleared) { cleared++; return; }
+      active++;
+      const color = c.confirms >= 2 ? '#d1483a' : '#e8a324';
+
+      const extent = c.points.length > 1
+        ? ' · ' + formatDistance(pathLength(c.points)) + ' stretch'
+        : '';
+      const popupHtml = `
+        <div class="popup-inner">
+          <div class="ptype">Cyclist closure</div>
+          <div class="pnote">${escapeHtml(c.note || 'No details added.')}</div>
+          <div class="pmeta">Reported ${daysAgo(c.reportedAt)} · ${c.confirms} confirm${c.confirms === 1 ? '' : 's'}${c.expectedClear ? ' · clears ~' + c.expectedClear : ''}${extent}</div>
+          <div class="popup-actions">
+            <button class="confirm" data-id="${c.id}" data-action="confirm">Still there</button>
+            <button class="clear" data-id="${c.id}" data-action="clear">Now clear</button>
+          </div>
+        </div>`;
+
+      let layer;
+      if (c.points.length > 1) {
+        layer = L.polyline(c.points.map(p => [p.lat, p.lng]), {
+          color, weight: 6, opacity: 0.9, dashArray: '2, 10', lineCap: 'round'
+        }).addTo(map);
+      } else {
+        layer = L.marker([c.points[0].lat, c.points[0].lng], { icon: hazardIcon(color) }).addTo(map);
+      }
+      layer.bindPopup(popupHtml);
+      markerLayer[c.id] = layer;
+    });
+
+    document.getElementById('activeCount').textContent = active;
+    document.getElementById('clearedCount').textContent = cleared;
+  }
+
+  function escapeHtml(str) {
+    const div = document.createElement('div');
+    div.textContent = str;
+    return div.innerHTML;
+  }
+
+  map.on('popupopen', (e) => {
+    const el = e.popup.getElement();
+    if (!el) return;
+    el.querySelectorAll('.popup-actions button').forEach(btn => {
+      btn.addEventListener('click', async () => {
+        const id = btn.getAttribute('data-id');
+        const action = btn.getAttribute('data-action');
+        const item = closures.find(c => c.id === id);
+        if (!item) return;
+        try {
+          if (action === 'confirm') await updateDoc(doc(db, 'closures', id), { confirms: (item.confirms || 0) + 1 });
+          if (action === 'clear') await updateDoc(doc(db, 'closures', id), { cleared: true });
+        } catch (err) {
+          showToast('Could not save — try again', true);
+        }
+        map.closePopup();
+      });
+    });
+  });
+
+  showToast('Loading reports…', false);
+  onSnapshot(closuresCol, (snapshot) => {
+    closures = snapshot.docs.map(d => ({ id: d.id, ...d.data() }));
+    renderMarkers();
+    toast.classList.add('hidden');
+  }, (err) => {
+    console.warn('Live closures subscription failed:', err);
+    showToast('Could not load shared reports', true);
+  });
+
+  function openPanel(points) {
+    pendingPoints = points;
+    const label = points.length > 1
+      ? points[0].lat.toFixed(5) + ', ' + points[0].lng.toFixed(5) + '  →  ' +
+        points[points.length - 1].lat.toFixed(5) + ', ' + points[points.length - 1].lng.toFixed(5) +
+        '  (' + formatDistance(pathLength(points)) + ')'
+      : points[0].lat.toFixed(5) + ', ' + points[0].lng.toFixed(5);
+    document.getElementById('coordsLabel').textContent = label;
+    document.getElementById('noteInput').value = '';
+    document.getElementById('dateInput').value = '';
+    backdrop.classList.add('open');
+    panel.classList.add('open');
+    reportHint.classList.add('dimmed');
+  }
+
+  function closePanel() {
+    backdrop.classList.remove('open');
+    panel.classList.remove('open');
+    reportHint.classList.remove('dimmed');
+    pendingPoints = [];
+  }
+
+  function setPickingHint(text) {
+    reportHint.textContent = text;
+  }
+
+  function startPicking(latlng) {
+    picking = true;
+    pendingPoints = [latlng];
+    pickStartMarker = L.circleMarker(latlng, {
+      radius: 7, color: '#1f2223', weight: 2, fillColor: '#e8a324', fillOpacity: 1
+    }).addTo(map);
+    pickStartMarker.on('click', (e) => {
+      L.DomEvent.stopPropagation(e);
+      finishPicking();
+    });
+    map.on('mousemove', onPickMouseMove);
+    reportHint.classList.add('picking');
+    setPickingHint('Tap the other end of the closure — or tap the dot for just this spot');
+  }
+
+  function onPickMouseMove(e) {
+    if (pickRubberBand) map.removeLayer(pickRubberBand);
+    pickRubberBand = L.polyline([pendingPoints[0], e.latlng], {
+      color: '#1f2223', weight: 3, dashArray: '4, 6', opacity: 0.6
+    }).addTo(map);
+  }
+
+  function cancelPicking() {
+    picking = false;
+    pendingPoints = [];
+    map.off('mousemove', onPickMouseMove);
+    if (pickStartMarker) { map.removeLayer(pickStartMarker); pickStartMarker = null; }
+    if (pickRubberBand) { map.removeLayer(pickRubberBand); pickRubberBand = null; }
+    reportHint.classList.remove('picking');
+    setPickingHint('Tap anywhere on the map to report a closure');
+  }
+
+  async function finishPicking(latlng) {
+    if (latlng) pendingPoints.push(latlng);
+    picking = false;
+    map.off('mousemove', onPickMouseMove);
+    if (pickStartMarker) { map.removeLayer(pickStartMarker); pickStartMarker = null; }
+    if (pickRubberBand) { map.removeLayer(pickRubberBand); pickRubberBand = null; }
+    reportHint.classList.remove('picking');
+    setPickingHint('Tap anywhere on the map to report a closure');
+
+    if (pendingPoints.length > 1) {
+      const [start, end] = pendingPoints;
+      showToast('Snapping to the road…', false);
+      pendingPoints = await snapToRoad(start, end);
+      toast.classList.add('hidden');
+    }
+    openPanel(pendingPoints);
+  }
+
+  map.on('click', (e) => {
+    if (!picking) {
+      startPicking(e.latlng);
+    } else {
+      finishPicking(e.latlng);
+    }
+  });
+
+  document.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape' && picking) cancelPicking();
+  });
+
+  reportHint.addEventListener('click', () => {
+    if (picking) cancelPicking();
+  });
+
+  document.getElementById('cancelBtn').addEventListener('click', closePanel);
+  backdrop.addEventListener('click', closePanel);
+
+  document.getElementById('submitBtn').addEventListener('click', async () => {
+    if (!pendingPoints.length) return;
+    const note = document.getElementById('noteInput').value.trim();
+    const dateVal = document.getElementById('dateInput').value;
+
+    const entry = {
+      points: pendingPoints.map(p => ({ lat: p.lat, lng: p.lng })),
+      note: note,
+      expectedClear: dateVal || null,
+      reportedAt: new Date().toISOString(),
+      confirms: 0,
+      cleared: false
+    };
+
+    closePanel();
+    showToast('Saving report…', false);
+    try {
+      await addDoc(closuresCol, entry);
+      showToast('Closure added — thanks!', true);
+    } catch (err) {
+      showToast('Could not save — try again', true);
+    }
+  });
+
+  loadRoadworks();
+  setInterval(loadRoadworks, ROADWORKS_REFRESH_MS);
+})();
+</script>
+
+</body>
+</html>

@@ -1027,7 +1027,7 @@ const closuresCol = collection(db, 'closures');
           <div class="pnote">${escapeHtml(c.note || 'No details added.')}</div>
           <div class="pmeta">Reported ${daysAgo(c.reportedAt)}${c.reportedBy ? ' by ' + escapeHtml(c.reportedBy) : ''} · ${c.confirms} confirm${c.confirms === 1 ? '' : 's'}${c.expectedClear ? ' · clears ~' + c.expectedClear : ''}${extent}</div>
           <div class="popup-actions">
-            <button class="confirm" data-id="${c.id}" data-action="confirm">Still there</button>
+            <button class="confirm" data-id="${c.id}" data-action="confirm">Confirm</button>
             <button class="clear" data-id="${c.id}" data-action="clear">Now clear</button>
           </div>
         </div>`;

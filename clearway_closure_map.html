@@ -290,7 +290,7 @@
     margin-bottom: 6px;
   }
 
-  .field textarea, .field input[type="date"] {
+  .field textarea, .field input[type="date"], .field input[type="text"] {
     width: 100%;
     border: 1.5px solid rgba(35,35,35,0.15);
     border-radius: 10px;
@@ -365,6 +365,64 @@
   .popup-actions button.confirm { color: var(--amber-dark); border-color: var(--amber-dark); }
   .popup-actions button.clear { color: var(--route-green); border-color: var(--route-green); }
 
+  /* ---------- Reporter row ---------- */
+  .reporter-row {
+    display: none;
+    align-items: center;
+    gap: 6px;
+    margin-top: 10px;
+    font-size: 12px;
+    color: rgba(244,241,234,0.75);
+  }
+  .reporter-row strong { color: var(--paper); font-weight: 600; }
+
+  .link-btn {
+    background: none;
+    border: none;
+    color: var(--amber);
+    font-size: 12px;
+    padding: 0;
+    cursor: pointer;
+    text-decoration: underline;
+    font-family: 'Inter', sans-serif;
+  }
+
+  /* ---------- Name gate ---------- */
+  .name-gate {
+    position: fixed;
+    inset: 0;
+    z-index: 5000;
+    background: rgba(35,35,35,0.55);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 20px;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.2s ease;
+  }
+  .name-gate.open { opacity: 1; pointer-events: auto; }
+
+  .name-gate-card {
+    background: var(--paper);
+    color: var(--ink);
+    border-radius: 18px;
+    padding: 24px 22px 22px 22px;
+    max-width: 360px;
+    width: 100%;
+    box-shadow: 0 12px 40px rgba(0,0,0,0.4);
+  }
+
+  .name-gate-card .brand-row { margin-bottom: 10px; }
+  .name-gate-card h1 { color: var(--ink); }
+
+  .name-gate-sub {
+    font-size: 13px;
+    color: #5b5548;
+    line-height: 1.45;
+    margin: 0 0 16px 0;
+  }
+
   /* ---------- Loading toast ---------- */
   .toast {
     position: absolute;
@@ -400,6 +458,21 @@
 </head>
 <body>
 
+<div class="name-gate" id="nameGate">
+  <div class="name-gate-card">
+    <div class="brand-row">
+      <span class="hazard-tick"></span>
+      <h1>Clearway</h1>
+    </div>
+    <p class="name-gate-sub">Before you start, who's reporting today? Your name is shown on any closures you add.</p>
+    <div class="field">
+      <label>Your name</label>
+      <input type="text" id="reporterInput" placeholder="e.g. Doran" maxlength="40" autocomplete="name" />
+    </div>
+    <button class="btn btn-primary" id="reporterContinueBtn" style="width:100%">Continue</button>
+  </div>
+</div>
+
 <div id="app">
   <header>
     <div class="header-inner">
@@ -417,6 +490,9 @@
         <label class="route-btn" for="gpxInput">Check a route (GPX)</label>
         <input type="file" id="gpxInput" accept=".gpx,application/gpx+xml" hidden />
         <span class="route-status" id="routeStatus"></span>
+      </div>
+      <div class="reporter-row" id="reporterRow">
+        Reporting as <strong id="reporterNameLabel"></strong> · <button class="link-btn" id="changeReporterBtn">change</button>
       </div>
     </div>
   </header>
@@ -481,6 +557,38 @@ const closuresCol = collection(db, 'closures');
   let pickStartMarker = null;
   let pickRubberBand = null;
   const markerLayer = {};
+
+  // ---------- Reporter name gate ----------
+  const nameGate = document.getElementById('nameGate');
+  const reporterInput = document.getElementById('reporterInput');
+  const reporterContinueBtn = document.getElementById('reporterContinueBtn');
+  const reporterRow = document.getElementById('reporterRow');
+  const reporterNameLabel = document.getElementById('reporterNameLabel');
+  const changeReporterBtn = document.getElementById('changeReporterBtn');
+
+  let reporterName = localStorage.getItem('clearwayReporterName') || '';
+  reporterInput.value = reporterName;
+
+  function showNameGate() {
+    nameGate.classList.add('open');
+    reporterInput.focus();
+  }
+
+  function confirmReporterName() {
+    const val = reporterInput.value.trim();
+    if (!val) { reporterInput.focus(); return; }
+    reporterName = val;
+    localStorage.setItem('clearwayReporterName', reporterName);
+    reporterNameLabel.textContent = reporterName;
+    reporterRow.style.display = 'flex';
+    nameGate.classList.remove('open');
+  }
+
+  reporterContinueBtn.addEventListener('click', confirmReporterName);
+  reporterInput.addEventListener('keydown', (e) => { if (e.key === 'Enter') confirmReporterName(); });
+  changeReporterBtn.addEventListener('click', showNameGate);
+
+  showNameGate();
 
   const map = L.map('map', { zoomControl: false, attributionControl: false }).setView([50.9307, 5.3378], 13); // Hasselt
   L.control.zoom({ position: 'bottomright' }).addTo(map);
@@ -917,7 +1025,7 @@ const closuresCol = collection(db, 'closures');
         <div class="popup-inner">
           <div class="ptype">Cyclist closure</div>
           <div class="pnote">${escapeHtml(c.note || 'No details added.')}</div>
-          <div class="pmeta">Reported ${daysAgo(c.reportedAt)} · ${c.confirms} confirm${c.confirms === 1 ? '' : 's'}${c.expectedClear ? ' · clears ~' + c.expectedClear : ''}${extent}</div>
+          <div class="pmeta">Reported ${daysAgo(c.reportedAt)}${c.reportedBy ? ' by ' + escapeHtml(c.reportedBy) : ''} · ${c.confirms} confirm${c.confirms === 1 ? '' : 's'}${c.expectedClear ? ' · clears ~' + c.expectedClear : ''}${extent}</div>
           <div class="popup-actions">
             <button class="confirm" data-id="${c.id}" data-action="confirm">Still there</button>
             <button class="clear" data-id="${c.id}" data-action="clear">Now clear</button>
@@ -1081,6 +1189,7 @@ const closuresCol = collection(db, 'closures');
       note: note,
       expectedClear: dateVal || null,
       reportedAt: new Date().toISOString(),
+      reportedBy: reporterName || 'Anonymous',
       confirms: 0,
       cleared: false
     };

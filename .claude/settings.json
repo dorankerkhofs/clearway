@@ -1,0 +1,10 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(npx --version)",
+      "Bash(command -v npx)",
+      "Bash(npx -y playwright --version)",
+      "Bash(command -v node)"
+    ]
+  }
+}

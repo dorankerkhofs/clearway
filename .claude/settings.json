@@ -4,7 +4,15 @@
       "Bash(npx --version)",
       "Bash(command -v npx)",
       "Bash(npx -y playwright --version)",
-      "Bash(command -v node)"
+      "Bash(command -v node)",
+      "Bash(gh --version)",
+      "Bash(python3 -c ' *)",
+      "Bash(curl -s \"https://api.github.com/repos/dorankerkhofs/clearway/actions/runs/28680746546/jobs\")",
+      "Bash(curl -sL \"https://api.github.com/repos/dorankerkhofs/clearway/actions/jobs/85063559313/logs\" -o /private/tmp/claude-501/-Users-doran-Documents-github-clearway/b27eb929-c9a6-4983-b6c7-a1358acae470/scratchpad/job_log.txt)",
+      "Bash(curl -s \"https://api.github.com/repos/dorankerkhofs/clearway/pages\")",
+      "Bash(python3 -m json.tool)",
+      "Bash(curl -s -o /dev/null -w \"%{http_code}\\\\n\" \"https://api.github.com/repos/facebook/react/pages\")",
+      "Bash(curl -s \"https://dorankerkhofs.github.io/clearway/\" -o /dev/null -w \"site http: %{http_code}\\\\n\")"
     ]
   }
 }

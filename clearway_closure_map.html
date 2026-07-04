@@ -60,8 +60,15 @@
 
   .brand-row {
     display: flex;
-    align-items: baseline;
+    align-items: center;
     gap: 10px;
+  }
+
+  .brand-logo {
+    width: 32px;
+    height: 32px;
+    display: block;
+    flex-shrink: 0;
   }
 
   h1 {
@@ -72,21 +79,6 @@
     text-transform: uppercase;
     margin: 0;
     color: var(--paper);
-  }
-
-  .hazard-tick {
-    display: inline-block;
-    width: 22px;
-    height: 14px;
-    background: repeating-linear-gradient(
-      -45deg,
-      var(--amber),
-      var(--amber) 4px,
-      var(--ink) 4px,
-      var(--ink) 8px
-    );
-    border-radius: 2px;
-    flex-shrink: 0;
   }
 
   .tagline {
@@ -477,7 +469,7 @@
 <div class="name-gate" id="nameGate">
   <div class="name-gate-card">
     <div class="brand-row">
-      <span class="hazard-tick"></span>
+      <img class="brand-logo" src="clearway_logo_v2.svg" alt="Clearway logo" width="32" height="32" />
       <h1>Clearway</h1>
     </div>
     <p class="name-gate-sub">Before you start, who's reporting today? Your name is shown on any closures you add.</p>
@@ -493,7 +485,7 @@
   <header>
     <div class="header-inner">
       <div class="brand-row">
-        <span class="hazard-tick"></span>
+        <img class="brand-logo" src="clearway_logo_v2.svg" alt="Clearway logo" width="32" height="32" />
         <h1>Clearway</h1>
       </div>
       <div class="tagline">Community-reported closures for cyclists. Tap the map to add one.</div>

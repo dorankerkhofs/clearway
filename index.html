@@ -248,16 +248,24 @@
     background: var(--paper);
     color: var(--ink);
     border-radius: 18px 18px 0 0;
-    padding: 20px 20px calc(24px + env(safe-area-inset-bottom)) 20px;
+    display: flex;
+    flex-direction: column;
     transform: translateY(105%);
     transition: transform 0.25s cubic-bezier(.32,.72,0,1);
     max-height: 82vh;
     max-height: calc(var(--app-height, 82vh) * 0.9);
-    overflow-y: auto;
-    -webkit-overflow-scrolling: touch;
     box-shadow: 0 -8px 30px rgba(0,0,0,0.4);
   }
   .panel.open { transform: translateY(0); }
+
+  /* Scrolls independently so the action buttons below stay reachable even
+     when a small screen + open keyboard leave little vertical room. */
+  .panel-scroll {
+    overflow-y: auto;
+    -webkit-overflow-scrolling: touch;
+    min-height: 0;
+    padding: 20px 20px 4px 20px;
+  }
 
   .panel-handle {
     width: 36px;
@@ -300,7 +308,8 @@
     border-radius: 10px;
     padding: 10px 12px;
     font-family: 'Inter', sans-serif;
-    font-size: 14px;
+    /* 16px stops iOS Safari from auto-zooming the page when the field gets focus */
+    font-size: 16px;
     background: #fff;
     color: var(--ink);
     resize: none;
@@ -312,9 +321,12 @@
   }
 
   .panel-actions {
+    flex: 0 0 auto;
     display: flex;
     gap: 10px;
-    margin-top: 18px;
+    padding: 14px 20px calc(18px + env(safe-area-inset-bottom)) 20px;
+    border-top: 1px solid rgba(35,35,35,0.1);
+    background: var(--paper);
   }
 
   .btn {
@@ -507,18 +519,20 @@
 
   <div class="panel-backdrop" id="backdrop"></div>
   <div class="panel" id="panel">
-    <div class="panel-handle"></div>
-    <h2>Report a closure</h2>
-    <div class="coords" id="coordsLabel">—</div>
+    <div class="panel-scroll">
+      <div class="panel-handle"></div>
+      <h2>Report a closure</h2>
+      <div class="coords" id="coordsLabel">—</div>
 
-    <div class="field">
-      <label>What's going on?</label>
-      <textarea id="noteInput" rows="3" placeholder="e.g. Road fully closed for resurfacing, no way through by bike"></textarea>
-    </div>
+      <div class="field">
+        <label>What's going on?</label>
+        <textarea id="noteInput" rows="3" placeholder="e.g. Road fully closed for resurfacing, no way through by bike"></textarea>
+      </div>
 
-    <div class="field">
-      <label>Expected clear by (optional)</label>
-      <input type="date" id="dateInput" />
+      <div class="field">
+        <label>Expected clear by (optional)</label>
+        <input type="date" id="dateInput" />
+      </div>
     </div>
 
     <div class="panel-actions">
@@ -573,6 +587,7 @@ const closuresCol = collection(db, 'closures');
   let pendingPoints = [];
   let picking = false;
   let pickStartMarker = null;
+  let pickStartHitArea = null;
   let pickRubberBand = null;
   const markerLayer = {};
 
@@ -1131,13 +1146,20 @@ const closuresCol = collection(db, 'closures');
   function startPicking(latlng) {
     picking = true;
     pendingPoints = [latlng];
+    const onStartMarkerClick = (e) => {
+      L.DomEvent.stopPropagation(e);
+      finishPicking();
+    };
+    // Invisible larger circle gives a touch-friendly (~44px) hit target without
+    // changing how big the marker looks; the visible dot sits on top of it.
+    pickStartHitArea = L.circleMarker(latlng, {
+      radius: 22, stroke: false, fillOpacity: 0
+    }).addTo(map);
+    pickStartHitArea.on('click', onStartMarkerClick);
     pickStartMarker = L.circleMarker(latlng, {
       radius: 7, color: '#1f2223', weight: 2, fillColor: '#e8a324', fillOpacity: 1
     }).addTo(map);
-    pickStartMarker.on('click', (e) => {
-      L.DomEvent.stopPropagation(e);
-      finishPicking();
-    });
+    pickStartMarker.on('click', onStartMarkerClick);
     map.on('mousemove', onPickMouseMove);
     reportHint.classList.add('picking');
     setPickingHint('Tap the other end of the closure — or tap the dot for just this spot');
@@ -1155,6 +1177,7 @@ const closuresCol = collection(db, 'closures');
     pendingPoints = [];
     map.off('mousemove', onPickMouseMove);
     if (pickStartMarker) { map.removeLayer(pickStartMarker); pickStartMarker = null; }
+    if (pickStartHitArea) { map.removeLayer(pickStartHitArea); pickStartHitArea = null; }
     if (pickRubberBand) { map.removeLayer(pickRubberBand); pickRubberBand = null; }
     reportHint.classList.remove('picking');
     setPickingHint('Tap anywhere on the map to report a closure');
@@ -1165,6 +1188,7 @@ const closuresCol = collection(db, 'closures');
     picking = false;
     map.off('mousemove', onPickMouseMove);
     if (pickStartMarker) { map.removeLayer(pickStartMarker); pickStartMarker = null; }
+    if (pickStartHitArea) { map.removeLayer(pickStartHitArea); pickStartHitArea = null; }
     if (pickRubberBand) { map.removeLayer(pickRubberBand); pickRubberBand = null; }
     reportHint.classList.remove('picking');
     setPickingHint('Tap anywhere on the map to report a closure');

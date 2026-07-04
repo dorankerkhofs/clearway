@@ -22,7 +22,10 @@
       "Bash(command -v chromium chromium-browser google-chrome)",
       "Bash(python3 /private/tmp/claude-501/-Users-doran-Documents-github-clearway/b27eb929-c9a6-4983-b6c7-a1358acae470/scratchpad/mobile_test.py)",
       "Bash(sed -i '' 's/wait_until=\"networkidle\"/wait_until=\"load\"/' mobile_test.py)",
-      "Bash(python3 mobile_test.py)"
+      "Bash(python3 mobile_test.py)",
+      "Bash(python3 /private/tmp/claude-501/-Users-doran-Documents-github-clearway/b27eb929-c9a6-4983-b6c7-a1358acae470/scratchpad/mobile_test5.py)",
+      "Bash(python3 /private/tmp/claude-501/-Users-doran-Documents-github-clearway/b27eb929-c9a6-4983-b6c7-a1358acae470/scratchpad/mobile_test6.py)",
+      "Bash(python3 /private/tmp/claude-501/-Users-doran-Documents-github-clearway/b27eb929-c9a6-4983-b6c7-a1358acae470/scratchpad/mobile_test7.py)"
     ]
   }
 }

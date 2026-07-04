@@ -23,6 +23,15 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - uses: actions/configure-pages@v5
+      - name: Inject Firebase API key
+        env:
+          FIREBASE_API_KEY: ${{ secrets.FIREBASE_API_KEY }}
+        run: |
+          if [ -z "$FIREBASE_API_KEY" ]; then
+            echo "::error::FIREBASE_API_KEY secret is not set" >&2
+            exit 1
+          fi
+          sed -i "s|__FIREBASE_API_KEY__|${FIREBASE_API_KEY}|g" index.html clearway_closure_map.html
       - uses: actions/upload-pages-artifact@v3
         with:
           path: '.'

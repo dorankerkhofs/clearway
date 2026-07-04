@@ -552,10 +552,13 @@ import {
   getFirestore, collection, doc, addDoc, updateDoc, onSnapshot
 } from "https://www.gstatic.com/firebasejs/12.15.0/firebase-firestore.js";
 
-// Paste your Firebase project's web config here (Firebase console → Project settings → Your apps).
-// This config is not a secret — access is controlled by Firestore security rules, not by hiding this.
+// __FIREBASE_API_KEY__ is substituted by the deploy workflow from the FIREBASE_API_KEY
+// GitHub secret (see .github/workflows/deploy-pages.yml) so the real key isn't committed.
+// Note this key still ends up in the deployed page's source — that's normal for Firebase
+// web apps, access is controlled by Firestore security rules, not by hiding this value.
+// For local testing, temporarily paste your real key here but don't commit it.
 const firebaseConfig = {
-  apiKey: "AIzaSyDt_lPa5fSDShN0wMGOrY5uPKM8CakGUW4",
+  apiKey: "__FIREBASE_API_KEY__",
   authDomain: "clearway-road.firebaseapp.com",
   projectId: "clearway-road",
   storageBucket: "clearway-road.firebasestorage.app",
